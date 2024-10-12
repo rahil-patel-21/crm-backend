@@ -1,5 +1,7 @@
+// Packages
 package db
 
+// Imports
 import (
 	"context"
 	"crm-backend/models"
@@ -39,15 +41,18 @@ func CloseDB() {
 // InsertUser inserts a new user into the database
 func InsertUser(user models.User) (int64, error) {
 	var userID int64
-	query := `
-        INSERT INTO users (email, password, otp, is_verified)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id
-    `
 
-	err := db.QueryRow(context.Background(), query, user.Email, user.Password, user.OTP, user.IsVerified).Scan(&userID)
+	// Construct the raw SQL query string with user inputs directly embedded (be cautious!)
+	query := fmt.Sprintf(`
+        INSERT INTO users (email, password, otp, is_verified)
+        VALUES ('%s', '%s', '%s', %t)
+        RETURNING id
+    `, user.Email, user.Password, user.OTP, false)
+
+	// Execute the SQL query directly using Exec
+	err := db.QueryRow(context.Background(), query).Scan(&userID)
 	if err != nil {
-		log.Println("Error inserting user into database:", err)
+		log.Printf("Error inserting user with email %s into database: %v", user.Email, err)
 		return 0, err
 	}
 

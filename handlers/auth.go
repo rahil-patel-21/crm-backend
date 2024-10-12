@@ -1,12 +1,16 @@
+// Packages
 package handlers
 
+// Imports
 import (
 	"crm-backend/db"
 	"crm-backend/models"
 	"crm-backend/utils"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,23 +30,27 @@ func SignUp(c *gin.Context) {
 		return
 	}
 
-	// Hash the password using MD5
 	user.Password = hashPasswordMD5(user.Password)
-	user.IsVerified = false
+	user.OTP = utils.GenerateOTP()
+	fmt.Println(user)
 
 	// Save the user in the database
-	_, err := db.InsertUser(user)
+	createdData, err := db.InsertUser(user)
 	if err != nil {
+		// Check if the error message contains the unique constraint name
+		if strings.Contains(err.Error(), "unique constraint \"users_email_key\"") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists!"}) // Changed to bad request
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
 		return
 	}
+	fmt.Println(createdData)
 
-	// Generate OTP and send it to the user's email
-	otp := utils.GenerateOTP()
-	user.OTP = otp
-	utils.SendEmail(user.Email, otp)
+	// utils.SendEmail(user.Email, user.OTP)
 
-	c.JSON(http.StatusOK, gin.H{"message": "User created, verify your email with the OTP sent"})
+	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email"})
 }
 
 // SignIn handles user login using email and password

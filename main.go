@@ -20,17 +20,15 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
-	// Initialize the database connection
-	db.ConnectDB()
-	defer db.CloseDB() // Ensure the DB connection is closed when the application shuts down
+	db.ConnectDB()     // Initialize the database connection
+	defer db.CloseDB() // Ensures the DB connection is closed when the application shuts down
 
 	// Initialize the Gin router
 	r := gin.Default()
 
 	// Routes for authentication
-	r.POST("/signup", handlers.SignUp)            // Endpoint for user signup
-	r.POST("/signin", handlers.SignIn)            // Endpoint for user login via email/password
-	r.POST("/signin-otp", handlers.SignInWithOTP) // Endpoint for user login via OTP
+	r.POST("/auth/signup", handlers.SignUp)
+	r.POST("/auth/signin", handlers.SignIn)
 
 	// Get the port from environment variable or use 8080 by default
 	port := os.Getenv("SERVER_PORT")
