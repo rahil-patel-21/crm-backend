@@ -25,7 +25,6 @@ func main() {
 
 	// Initialize the Gin router
 	r := gin.Default()
-
 	// Routes for authentication
 	r.POST("/auth/signup", handlers.SignUp)
 	r.POST("/auth/signin", handlers.SignIn)

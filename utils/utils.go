@@ -1,16 +1,23 @@
+// Packages
 package utils
 
+// Imports
 import (
 	"math/rand"
 	"net/smtp"
+	"os"
 	"strconv"
 	"time"
 )
 
 // GenerateOTP generates a random 6-digit numeric OTP
 func GenerateOTP() string {
+	if os.Getenv("SERVER_MODE") != "PROD" {
+		return "1111"
+	}
+
 	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
-	otp := rand.Intn(1000000)        // Generate a random number between 0 and 999999
+	otp := rand.Intn(9999)           // Generate a random number between 0 and 999999
 	return strconv.Itoa(otp)         // Convert to string
 }
 
