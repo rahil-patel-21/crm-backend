@@ -27,7 +27,8 @@ func main() {
 	r := gin.Default()
 	// Routes for authentication
 	r.POST("/auth/signup", handlers.SignUp)
-	r.POST("/auth/signin", handlers.SignIn)
+	r.POST("/auth/resendOTP", handlers.ResendOTP)
+	r.POST("/auth/verifyOTP", handlers.VerifyOTP)
 
 	// Get the port from environment variable or use 8080 by default
 	port := os.Getenv("SERVER_PORT")

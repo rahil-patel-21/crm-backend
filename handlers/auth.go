@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -25,14 +26,22 @@ func hashPasswordMD5(password string) string {
 func SignUp(c *gin.Context) {
 	var user models.User
 
+	// Validate request
 	if err := c.BindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if !isValidEmail(user.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid email address"})
+		return
+	}
+	if len(user.Password) < 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password length should be minimum 6 characters"})
 		return
 	}
 
 	user.Password = hashPasswordMD5(user.Password)
 	user.OTP = utils.GenerateOTP()
-	fmt.Println(user)
 
 	// Save the user in the database
 	createdData, err := db.InsertUser(user)
@@ -48,9 +57,82 @@ func SignUp(c *gin.Context) {
 	}
 	fmt.Println(createdData)
 
-	// utils.SendEmail(user.Email, user.OTP)
+	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email"})
+}
+
+func ResendOTP(c *gin.Context) {
+	var user models.User
+
+	// Validate request
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if !isValidEmail(user.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid email address"})
+		return
+	}
+
+	// Save the user in the database
+	userId, err := db.FindUserIdByEmail(user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	if userId == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not find email"})
+		return
+	}
+
+	user.OTP = utils.GenerateOTP()
+	err = db.UpdateUserOTPByEmailId(userId, user.OTP)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP Send failed !"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email"})
+}
+
+func VerifyOTP(c *gin.Context) {
+	var user models.User
+
+	// Validate request
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if !isValidEmail(user.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid email address"})
+		return
+	}
+	if len(user.OTP) != 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid 4 digit OTP"})
+		return
+	}
+
+	// Save the user in the database
+	userId, otp, err := db.FindOTPByEmail(user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	if userId == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Could not find email"})
+		return
+	}
+	if user.OTP != otp {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OTP, Please try again later"})
+		return
+	}
+
+	token, err := utils.GenerateJWT(user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
 // SignIn handles user login using email and password
@@ -64,11 +146,12 @@ func SignIn(c *gin.Context) {
 	}
 
 	// Check if the user exists in the database
-	err := db.FindUserByEmail(user.Email, &foundUser)
+	userId, err := db.FindUserIdByEmail(user.Email)
 	if err != nil || !foundUser.IsVerified {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or account not verified"})
 		return
 	}
+	fmt.Println(userId)
 
 	// Compare the provided password with the stored hashed password
 	if hashPasswordMD5(user.Password) != foundUser.Password {
@@ -97,11 +180,12 @@ func SignInWithOTP(c *gin.Context) {
 	}
 
 	// Check if the user exists and the OTP matches
-	err := db.FindUserByEmail(user.Email, &foundUser)
+	userId, err := db.FindUserIdByEmail(user.Email)
 	if err != nil || user.OTP != foundUser.OTP {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or OTP"})
 		return
 	}
+	fmt.Println((userId))
 
 	// Generate JWT token on successful OTP authentication
 	token, err := utils.GenerateJWT(foundUser.Email)
@@ -111,4 +195,11 @@ func SignInWithOTP(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+func isValidEmail(email string) bool {
+	// Define a regex pattern for a valid email
+	emailRegex := `^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`
+	re := regexp.MustCompile(emailRegex)
+	return re.MatchString(email)
 }
