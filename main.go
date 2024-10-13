@@ -30,6 +30,8 @@ func main() {
 	r.POST("/auth/resendOTP", handlers.ResendOTP)
 	r.POST("/auth/verifyOTP", handlers.VerifyOTP)
 
+	r.GET("/company/categoryList", handlers.CategoryList)
+
 	// Get the port from environment variable or use 8080 by default
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {

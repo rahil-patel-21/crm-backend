@@ -39,6 +39,14 @@ func SignUp(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Password length should be minimum 6 characters"})
 		return
 	}
+	if len(user.Company_Name) <= 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid company name"})
+		return
+	}
+	if user.Company_Category_Id == nil || *user.Company_Category_Id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid company category id"})
+		return
+	}
 
 	user.Password = hashPasswordMD5(user.Password)
 	user.OTP = utils.GenerateOTP()
