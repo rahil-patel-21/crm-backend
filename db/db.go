@@ -109,7 +109,6 @@ func FindOTPByEmail(email string) (int64, string, error) {
 	return userID, otp, nil // Return both userID and otp
 }
 
-// InsertUser inserts a new user into the database
 func InsertTicket(ticket models.Ticket) (int64, error) {
 	var id int64
 
@@ -144,4 +143,49 @@ func InsertTicket(ticket models.Ticket) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func GetTicketList(page int, pageSize int, created_by int) (int64, []models.Ticket, error) {
+	var count int64
+	var tickets []models.Ticket
+
+	// Query to count total tickets
+	countQuery := `SELECT COUNT(*) FROM "tickets" WHERE created_by = $1`
+	err := db.QueryRow(context.Background(), countQuery, created_by).Scan(&count)
+	if err != nil {
+		fmt.Println("Error counting tickets:", err)
+		return 0, nil, err
+	}
+	if count == 0 {
+		return count, tickets, nil // Avoid checking rows as count is already zero
+	}
+
+	// Query to select tickets with pagination
+	query := `SELECT "id", "customer_name", "contact", "email", "address", "city", "district",
+	"state", "pincode", "gst", "brand", "model_no", "serial_no", "issue_description", "due_date",
+	"created_at", "updated_at"
+	FROM "tickets" 
+	WHERE created_by = $1 LIMIT $2 OFFSET $3`
+	rows, err := db.Query(context.Background(), query, created_by, pageSize, (page-1)*pageSize)
+	if err != nil {
+		fmt.Println("Error querying tickets:", err)
+		return 0, nil, err
+	}
+	defer rows.Close()
+
+	// Iterate over the result set and scan into tickets slice
+	for rows.Next() {
+		var ticket models.Ticket
+		err := rows.Scan(&ticket.ID, &ticket.Customer_Name, &ticket.Contact_Number, &ticket.Email,
+			&ticket.Address, &ticket.City, &ticket.District, &ticket.State, &ticket.Pincode, &ticket.Gst_Number,
+			&ticket.Brand, &ticket.Model_Number, &ticket.Serial_Number, &ticket.Issue_Description, &ticket.Due_Date,
+			&ticket.Created_At, &ticket.Updated_At)
+		if err != nil {
+			fmt.Println("Error scanning ticket:", err)
+			return 0, nil, err
+		}
+		tickets = append(tickets, ticket)
+	}
+
+	return count, tickets, nil
 }
