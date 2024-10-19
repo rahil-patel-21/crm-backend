@@ -16,3 +16,14 @@ func GenerateJWT(email string) (string, error) {
 
 	return token.SignedString(jwtKey)
 }
+
+// ValidateJWT checks if the token is valid
+func ValidateJWT(tokenString string) (*jwt.Token, error) {
+	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return nil, nil
+	})
+
+}
