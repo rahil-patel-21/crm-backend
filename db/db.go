@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -106,4 +107,41 @@ func FindOTPByEmail(email string) (int64, string, error) {
 	}
 
 	return userID, otp, nil // Return both userID and otp
+}
+
+// InsertUser inserts a new user into the database
+func InsertTicket(ticket models.Ticket) (int64, error) {
+	var id int64
+
+	query := fmt.Sprintf(`
+    INSERT INTO tickets (
+        customer_name, contact, email, address, city, district, state, pincode, GST, brand, 
+		model_no, serial_no, issue_description, created_by, due_date ) 
+    VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s') 
+    RETURNING id`,
+		ticket.Customer_Name,
+		ticket.Contact_Number,
+		ticket.Email,
+		ticket.Address,
+		ticket.City,
+		ticket.District,
+		ticket.State,
+		ticket.Pincode,
+		ticket.Gst_Number,
+		ticket.Brand,
+		ticket.Model_Number,
+		ticket.Serial_Number,
+		ticket.Issue_Description,
+		ticket.Created_By,                    // '%d' for integer type
+		ticket.Due_Date.Format(time.RFC3339), // '%s' for date in string format (ISO8601 format)
+	)
+
+	// Execute the SQL query directly using Exec
+	err := db.QueryRow(context.Background(), query).Scan(&id)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+
+	return id, nil
 }

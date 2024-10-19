@@ -32,6 +32,8 @@ func main() {
 
 	r.GET("/company/categoryList", handlers.CategoryList)
 
+	r.POST("/ticket/create", handlers.CreateTicket)
+
 	// Get the port from environment variable or use 8080 by default
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
