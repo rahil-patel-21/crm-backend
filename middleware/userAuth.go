@@ -18,7 +18,7 @@ func AuthRequired() gin.HandlerFunc {
 
 		token, err := utils.ValidateJWT(tokenString)
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is required"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}

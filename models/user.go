@@ -8,4 +8,5 @@ type User struct {
 	Password            string `json:"password"`
 	OTP                 string `json:"otp,omitempty"`
 	IsVerified          bool   `json:"is_verified"`
+	Token               string `json:"token"`
 }

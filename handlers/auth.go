@@ -50,10 +50,18 @@ func SignUp(c *gin.Context) {
 
 	user.Password = hashPasswordMD5(user.Password)
 	user.OTP = utils.GenerateOTP()
+	//generate the token
+	jwtToken, jwtError := utils.GenerateJWT(user.Email)
+	if jwtError != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Token not generated"})
+		return
+	}
+	user.Token = jwtToken
 
 	// Save the user in the database
 	createdData, err := db.InsertUser(user)
 	if err != nil {
+		fmt.Print((err))
 		// Check if the error message contains the unique constraint name
 		if strings.Contains(err.Error(), "unique constraint \"users_email_key\"") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists!"}) // Changed to bad request
@@ -65,7 +73,7 @@ func SignUp(c *gin.Context) {
 	}
 	fmt.Println(createdData)
 
-	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email"})
+	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email", "token": user.Token})
 }
 
 func ResendOTP(c *gin.Context) {
@@ -93,6 +101,12 @@ func ResendOTP(c *gin.Context) {
 	}
 
 	user.OTP = utils.GenerateOTP()
+	jwtToken, jwtError := utils.GenerateJWT(user.Email)
+	if jwtError != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Token not generated"})
+		return
+	}
+	user.Token = jwtToken
 	err = db.UpdateUserOTPByEmailId(userId, user.OTP)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP Send failed !"})

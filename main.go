@@ -8,6 +8,7 @@ import (
 
 	"crm-backend/db"
 	"crm-backend/handlers"
+	"crm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -25,12 +26,13 @@ func main() {
 
 	// Initialize the Gin router
 	r := gin.Default()
+	// r.Use(middleware.AuthRequired())
 	// Routes for authentication
 	r.POST("/auth/signup", handlers.SignUp)
 	r.POST("/auth/resendOTP", handlers.ResendOTP)
-	r.POST("/auth/verifyOTP", handlers.VerifyOTP)
+	r.POST("/auth/verifyOTP", middleware.AuthRequired(), handlers.VerifyOTP)
 
-	r.GET("/company/categoryList", handlers.CategoryList)
+	r.GET("/company/categoryList", middleware.AuthRequired(), handlers.CategoryList)
 
 	r.POST("/ticket/create", handlers.CreateTicket)
 
