@@ -8,6 +8,7 @@ import (
 
 	"crm-backend/db"
 	"crm-backend/handlers"
+	"crm-backend/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -23,8 +24,9 @@ func main() {
 	db.ConnectDB()     // Initialize the database connection
 	defer db.CloseDB() // Ensures the DB connection is closed when the application shuts down
 
-	// Initialize the Gin router
-	r := gin.Default()
+	r := gin.Default()       // Initialize the Gin router
+	r.Use(middleware.CORS()) // Apply the CORS middleware
+
 	// Routes for authentication
 	r.POST("/auth/signup", handlers.SignUp)
 	r.POST("/auth/resendOTP", handlers.ResendOTP)
