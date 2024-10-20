@@ -27,6 +27,8 @@ func main() {
 	r := gin.Default()       // Initialize the Gin router
 	r.Use(middleware.CORS()) // Apply the CORS middleware
 
+	r.Use(middleware.AuthRequired())
+
 	// Routes for authentication
 	r.POST("/auth/signup", handlers.SignUp)
 	r.POST("/auth/resendOTP", handlers.ResendOTP)

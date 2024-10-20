@@ -50,10 +50,17 @@ func SignUp(c *gin.Context) {
 
 	user.Password = hashPasswordMD5(user.Password)
 	user.OTP = utils.GenerateOTP()
+	//generate the token
+	jwtToken, jwtError := utils.GenerateJWT(user.Email, "min")
+	if jwtError != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Token not generated"})
+		return
+	}
 
 	// Save the user in the database
 	createdData, err := db.InsertUser(user)
 	if err != nil {
+		fmt.Print((err))
 		// Check if the error message contains the unique constraint name
 		if strings.Contains(err.Error(), "unique constraint \"users_email_key\"") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists!"}) // Changed to bad request
@@ -65,7 +72,7 @@ func SignUp(c *gin.Context) {
 	}
 	fmt.Println(createdData)
 
-	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email"})
+	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email", "token": jwtToken})
 }
 
 func ResendOTP(c *gin.Context) {
@@ -93,13 +100,18 @@ func ResendOTP(c *gin.Context) {
 	}
 
 	user.OTP = utils.GenerateOTP()
+	jwtToken, jwtError := utils.GenerateJWT(user.Email, "min")
+	if jwtError != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Token not generated"})
+		return
+	}
 	err = db.UpdateUserOTPByEmailId(userId, user.OTP)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP Send failed !"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email"})
+	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email", "token": jwtToken})
 }
 
 func VerifyOTP(c *gin.Context) {
@@ -110,7 +122,9 @@ func VerifyOTP(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	if !isValidEmail(user.Email) {
+	email := user.Email
+
+	if !isValidEmail(email) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid email address"})
 		return
 	}
@@ -120,7 +134,7 @@ func VerifyOTP(c *gin.Context) {
 	}
 
 	// Save the user in the database
-	userId, otp, err := db.FindOTPByEmail(user.Email)
+	userId, otp, is_verified, err := db.FindOTPByEmail(email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -134,12 +148,16 @@ func VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.GenerateJWT(user.Email)
+	token, err := utils.GenerateJWT(user.Email, "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create token"})
 		return
 	}
-
+	//If user is not verified then update
+	if !is_verified {
+		is_verified = true
+		db.UpdateUserVerifiedByID(userId, is_verified)
+	}
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
@@ -168,7 +186,7 @@ func SignIn(c *gin.Context) {
 	}
 
 	// Generate JWT token on successful authentication
-	token, err := utils.GenerateJWT(foundUser.Email)
+	token, err := utils.GenerateJWT(foundUser.Email, "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create token"})
 		return
@@ -196,7 +214,7 @@ func SignInWithOTP(c *gin.Context) {
 	fmt.Println((userId))
 
 	// Generate JWT token on successful OTP authentication
-	token, err := utils.GenerateJWT(foundUser.Email)
+	token, err := utils.GenerateJWT(foundUser.Email, "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create token"})
 		return

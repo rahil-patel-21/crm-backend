@@ -92,21 +92,36 @@ func UpdateUserOTPByEmailId(userID int64, otp string) error {
 	return nil
 }
 
-func FindOTPByEmail(email string) (int64, string, error) {
-	query := `SELECT "id", "otp" FROM users WHERE email = $1`
+func UpdateUserVerifiedByID(userID int64, is_verified bool) error {
+	query := fmt.Sprintf(`UPDATE users SET is_verified='%t' WHERE id = %d`, is_verified, userID)
+	fmt.Print(query)
+	// Execute the query
+	_, err := db.Exec(context.Background(), query)
+	if err != nil {
+		log.Println("Error updating OTP for user:", err)
+		return err
+	}
+
+	log.Println("OTP updated successfully for user ID:", userID)
+	return nil
+}
+
+func FindOTPByEmail(email string) (int64, string, bool, error) {
+	query := `SELECT "id", "otp","is_verified" FROM users WHERE email = $1`
 
 	var userID int64
 	var otp string
-	err := db.QueryRow(context.Background(), query, email).Scan(&userID, &otp) // Scan both values into variables
+	var is_verified bool
+	err := db.QueryRow(context.Background(), query, email).Scan(&userID, &otp, &is_verified) // Scan both values into variables
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return 0, "", nil // User not found, return 0 and an empty OTP
+			return 0, "", false, nil // User not found, return 0 and an empty OTP
 		}
 		log.Println("Error fetching user by email:", err)
-		return 0, "", err // Return error with empty OTP
+		return 0, "", false, err // Return error with empty OTP
 	}
 
-	return userID, otp, nil // Return both userID and otp
+	return userID, otp, is_verified, nil // Return both userID and otp
 }
 
 func InsertTicket(ticket models.Ticket) (int64, error) {
