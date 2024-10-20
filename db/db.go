@@ -45,7 +45,7 @@ func InsertUser(user models.User) (int64, error) {
 
 	// Construct the raw SQL query string with user inputs directly embedded (be cautious!)
 	query := fmt.Sprintf(`
-        INSERT INTO users (email, password, otp, is_verified)
+        INSERT INTO users (email, password, otp,token, is_verified)
         VALUES ('%s', '%s', '%s', %t)
         RETURNING id
     `, user.Email, user.Password, user.OTP, false)
@@ -92,24 +92,38 @@ func UpdateUserOTPByEmailId(userID int64, otp string) error {
 	return nil
 }
 
-func FindOTPByEmail(email string) (int64, string, error) {
-	query := `SELECT "id", "otp" FROM users WHERE email = $1`
+func UpdateUserVerifiedByID(userID int64, is_verified bool) error {
+	query := fmt.Sprintf(`UPDATE users SET is_verified='%t' WHERE id = %d`, is_verified, userID)
+	fmt.Print(query)
+	// Execute the query
+	_, err := db.Exec(context.Background(), query)
+	if err != nil {
+		log.Println("Error updating OTP for user:", err)
+		return err
+	}
+
+	log.Println("OTP updated successfully for user ID:", userID)
+	return nil
+}
+
+func FindOTPByEmail(email string) (int64, string, bool, error) {
+	query := `SELECT "id", "otp","is_verified" FROM users WHERE email = $1`
 
 	var userID int64
 	var otp string
-	err := db.QueryRow(context.Background(), query, email).Scan(&userID, &otp) // Scan both values into variables
+	var is_verified bool
+	err := db.QueryRow(context.Background(), query, email).Scan(&userID, &otp, &is_verified) // Scan both values into variables
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return 0, "", nil // User not found, return 0 and an empty OTP
+			return 0, "", false, nil // User not found, return 0 and an empty OTP
 		}
 		log.Println("Error fetching user by email:", err)
-		return 0, "", err // Return error with empty OTP
+		return 0, "", false, err // Return error with empty OTP
 	}
 
-	return userID, otp, nil // Return both userID and otp
+	return userID, otp, is_verified, nil // Return both userID and otp
 }
 
-// InsertUser inserts a new user into the database
 func InsertTicket(ticket models.Ticket) (int64, error) {
 	var id int64
 
@@ -144,4 +158,49 @@ func InsertTicket(ticket models.Ticket) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func GetTicketList(page int, pageSize int, created_by int) (int64, []models.Ticket, error) {
+	var count int64
+	var tickets []models.Ticket
+
+	// Query to count total tickets
+	countQuery := `SELECT COUNT(*) FROM "tickets" WHERE created_by = $1`
+	err := db.QueryRow(context.Background(), countQuery, created_by).Scan(&count)
+	if err != nil {
+		fmt.Println("Error counting tickets:", err)
+		return 0, nil, err
+	}
+	if count == 0 {
+		return count, tickets, nil // Avoid checking rows as count is already zero
+	}
+
+	// Query to select tickets with pagination
+	query := `SELECT "id", "customer_name", "contact", "email", "address", "city", "district",
+	"state", "pincode", "gst", "brand", "model_no", "serial_no", "issue_description", "due_date",
+	"created_at", "updated_at"
+	FROM "tickets" 
+	WHERE created_by = $1 LIMIT $2 OFFSET $3`
+	rows, err := db.Query(context.Background(), query, created_by, pageSize, (page-1)*pageSize)
+	if err != nil {
+		fmt.Println("Error querying tickets:", err)
+		return 0, nil, err
+	}
+	defer rows.Close()
+
+	// Iterate over the result set and scan into tickets slice
+	for rows.Next() {
+		var ticket models.Ticket
+		err := rows.Scan(&ticket.ID, &ticket.Customer_Name, &ticket.Contact_Number, &ticket.Email,
+			&ticket.Address, &ticket.City, &ticket.District, &ticket.State, &ticket.Pincode, &ticket.Gst_Number,
+			&ticket.Brand, &ticket.Model_Number, &ticket.Serial_Number, &ticket.Issue_Description, &ticket.Due_Date,
+			&ticket.Created_At, &ticket.Updated_At)
+		if err != nil {
+			fmt.Println("Error scanning ticket:", err)
+			return 0, nil, err
+		}
+		tickets = append(tickets, ticket)
+	}
+
+	return count, tickets, nil
 }
