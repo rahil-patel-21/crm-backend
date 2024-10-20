@@ -164,35 +164,45 @@ func VerifyOTP(c *gin.Context) {
 // SignIn handles user login using email and password
 func SignIn(c *gin.Context) {
 	var user models.User
-	var foundUser models.User
 
 	if err := c.BindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-
-	// Check if the user exists in the database
-	userId, err := db.FindUserIdByEmail(user.Email)
-	if err != nil || !foundUser.IsVerified {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or account not verified"})
+	if !isValidEmail(user.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid email address"})
 		return
 	}
-	fmt.Println(userId)
-
-	// Compare the provided password with the stored hashed password
-	if hashPasswordMD5(user.Password) != foundUser.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
+	if user.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid password"})
 		return
 	}
 
-	// Generate JWT token on successful authentication
-	token, err := utils.GenerateJWT(foundUser.Email, "")
+	existingUser, err := db.FindUserByEmail(user.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create token"})
+		fmt.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	fmt.Println(existingUser)
+	if existingUser.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is not registered, Kindly sign up first !"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	actualPassword := hashPasswordMD5(user.Password)
+	if actualPassword != existingUser.Password {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid password"})
+		return
+	}
+
+	token, err := utils.GenerateJWT(user.Email, "")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"token": token})
 }
 
 // SignInWithOTP handles user login using email and OTP
