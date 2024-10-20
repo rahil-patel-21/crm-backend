@@ -33,6 +33,7 @@ func main() {
 	r.POST("/auth/signup", handlers.SignUp)
 	r.POST("/auth/resendOTP", handlers.ResendOTP)
 	r.POST("/auth/verifyOTP", handlers.VerifyOTP)
+	r.POST("/auth/signIn", handlers.SignIn)
 
 	r.GET("/company/categoryList", handlers.CategoryList)
 

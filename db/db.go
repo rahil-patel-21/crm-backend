@@ -124,6 +124,25 @@ func FindOTPByEmail(email string) (int64, string, bool, error) {
 	return userID, otp, is_verified, nil // Return both userID and otp
 }
 
+func FindUserByEmail(email string) (models.User, error) {
+	// Define the query to get the user by email
+	query := `SELECT "id", "password" FROM users WHERE email = $1`
+
+	// Create an empty User model to hold the results
+	var user models.User
+
+	// QueryRow is used for fetching a single row result
+	err := db.QueryRow(context.Background(), query, email).Scan(&user.ID, &user.Password)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return models.User{}, nil
+		}
+		return models.User{}, err
+	}
+
+	return user, nil
+}
+
 func InsertTicket(ticket models.Ticket) (int64, error) {
 	var id int64
 
