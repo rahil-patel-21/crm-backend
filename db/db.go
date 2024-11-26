@@ -240,3 +240,54 @@ func CreateCustomer(customer models.Customer) error {
 	_, err := db.Exec(context.Background(), query)
 	return err
 }
+
+func GetCustomerList(page int, pageSize int, searchText string) (int64, []models.Customer, error) {
+	var count int64
+	var customers []models.Customer
+	queryParams := []interface{}{}
+
+	countQuery := `SELECT COUNT(*) FROM "Customer"`
+	listQuery := `SELECT "mobileNumber", "fullName", "email", "companyName", "address_1", "address_2", "city", "district", "state", 
+	"pincode", "type", "reference", "gstNumber"
+	FROM "Customer"`
+	// Search via number
+	if searchText != "" {
+		countQuery += ` WHERE "mobileNumber" ILIKE $1 OR "email" ILIKE $1`
+		listQuery += ` WHERE "mobileNumber" ILIKE $1 OR "email" ILIKE $1`
+		queryParams = append(queryParams, "%"+searchText+"%")
+		listQuery += ` LIMIT $2 OFFSET $3`
+	} else {
+		listQuery += ` LIMIT $1 OFFSET $2`
+	}
+	err := db.QueryRow(context.Background(), countQuery, queryParams...).Scan(&count)
+	if err != nil {
+		fmt.Println("Error counting tickets:", err)
+		return 0, nil, err
+	}
+	if count == 0 {
+		return count, customers, nil // Avoid checking rows as count is already zero
+	}
+
+	// Query to select tickets with pagination
+	queryParams = append(queryParams, pageSize, (page-1)*pageSize)
+	rows, err := db.Query(context.Background(), listQuery, queryParams...)
+	if err != nil {
+		fmt.Println(err)
+		return 0, nil, err
+	}
+	defer rows.Close()
+
+	// Iterate over the result set and scan into tickets slice
+	for rows.Next() {
+		var customer models.Customer
+		err := rows.Scan(&customer.MobileNumber, &customer.FullName, &customer.Email, &customer.CompanyName, &customer.Address_1,
+			&customer.Address_2, &customer.City, &customer.District, &customer.State, &customer.Pincode, &customer.Type,
+			&customer.Reference, &customer.GstNumber)
+		if err != nil {
+			return 0, nil, err
+		}
+		customers = append(customers, customer)
+	}
+
+	return count, customers, nil
+}

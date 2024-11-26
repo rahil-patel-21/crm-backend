@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -56,8 +57,32 @@ func Create(c *gin.Context) {
 }
 
 func List(c *gin.Context) {
+	pageSizeStr := c.Query("pageSize")
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pageSize must be a number more than 0"})
+		return
+	}
+	pageStr := c.Query("page")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "page must be a number more than 0"})
+		return
+	}
+	searchText := c.Query("searchText")
 
-	c.JSON(http.StatusOK, gin.H{})
+	count, rows, err := db.GetCustomerList(page, pageSize, searchText)
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	if len(rows) == 0 {
+		c.JSON(http.StatusOK, gin.H{"count": count, "rows": []map[string]interface{}{}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"count": count, "rows": rows})
 }
 
 func isValidEmail(email string) bool {
