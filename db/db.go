@@ -223,3 +223,20 @@ func GetTicketList(page int, pageSize int, created_by int) (int64, []models.Tick
 
 	return count, tickets, nil
 }
+
+// Create a new customer into the database
+func CreateCustomer(customer models.Customer) error {
+
+	// Construct the raw SQL query string with user inputs directly embedded (be cautious!)
+	query := fmt.Sprintf(`
+        INSERT INTO "Customer" 
+		("mobileNumber", "fullName", "email", "companyName", "address_1", "address_2", "city", "district", "state", "pincode",
+		"type", "reference", "gstNumber")
+        VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+    `, customer.MobileNumber, customer.FullName, customer.Email, customer.CompanyName, customer.Address_1, customer.Address_2,
+		customer.City, customer.District, customer.State, customer.Pincode, customer.Type, customer.Reference, customer.GstNumber)
+
+	// Execute the SQL query directly using Exec
+	_, err := db.Exec(context.Background(), query)
+	return err
+}
