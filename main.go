@@ -9,6 +9,7 @@ import (
 	"crm-backend/db"
 	"crm-backend/handlers"
 	"crm-backend/middleware"
+	customer "crm-backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -34,6 +35,9 @@ func main() {
 	r.POST("/auth/resendOTP", handlers.ResendOTP)
 	r.POST("/auth/verifyOTP", handlers.VerifyOTP)
 	r.POST("/auth/signIn", handlers.SignIn)
+
+	r.GET("/customer/list", customer.List)
+	r.POST("/customer/create", customer.Create)
 
 	r.GET("/company/categoryList", handlers.CategoryList)
 
