@@ -58,7 +58,7 @@ func SignUp(c *gin.Context) {
 	}
 
 	// Save the user in the database
-	createdData, err := db.InsertUser(user)
+	err := db.InsertUser(user)
 	if err != nil {
 		fmt.Print((err))
 		// Check if the error message contains the unique constraint name
@@ -70,7 +70,6 @@ func SignUp(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
 		return
 	}
-	fmt.Println(createdData)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "OTP successfully sent on your email", "token": jwtToken})
 }
@@ -158,7 +157,7 @@ func VerifyOTP(c *gin.Context) {
 		is_verified = true
 		db.UpdateUserVerifiedByID(userId, is_verified)
 	}
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, gin.H{"token": token, "org_id": userId})
 }
 
 // SignIn handles user login using email and password
@@ -184,7 +183,6 @@ func SignIn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	fmt.Println(existingUser)
 	if existingUser.Password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is not registered, Kindly sign up first !"})
 		return
@@ -202,7 +200,7 @@ func SignIn(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"token": token})
+	c.JSON(http.StatusCreated, gin.H{"token": token, "org_id": existingUser.ID})
 }
 
 // SignInWithOTP handles user login using email and OTP

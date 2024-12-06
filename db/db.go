@@ -40,8 +40,8 @@ func CloseDB() {
 }
 
 // InsertUser inserts a new user into the database
-func InsertUser(user models.User) (int64, error) {
-	var userID int64
+func InsertUser(user models.User) error {
+	var userId int64
 
 	// Construct the raw SQL query string with user inputs directly embedded (be cautious!)
 	query := fmt.Sprintf(`
@@ -51,13 +51,13 @@ func InsertUser(user models.User) (int64, error) {
     `, user.Email, user.Password, user.OTP, false)
 
 	// Execute the SQL query directly using Exec
-	err := db.QueryRow(context.Background(), query).Scan(&userID)
+	err := db.QueryRow(context.Background(), query).Scan(&userId)
 	if err != nil {
 		log.Printf("Error inserting user with email %s into database: %v", user.Email, err)
-		return 0, err
+		return err
 	}
 
-	return userID, nil
+	return nil
 }
 
 // FindUserByEmail finds a user by email
@@ -290,4 +290,67 @@ func GetCustomerList(page int, pageSize int, searchText string) (int64, []models
 	}
 
 	return count, customers, nil
+}
+
+// Create a new customer into the database
+func CreateEmployee(employee models.Employee) error {
+
+	// Construct the raw SQL query string with user inputs directly embedded (be cautious!)
+	query := fmt.Sprintf(`
+        INSERT INTO "Employee" 
+		("mobileNumber", "firstName", "lastName", "org_id")
+        VALUES ('%s', '%s', '%s', '%d')
+    `, employee.MobileNumber, employee.FirstName, employee.LastName, employee.OrgId)
+
+	// Execute the SQL query directly using Exec
+	_, err := db.Exec(context.Background(), query)
+	return err
+}
+
+func GetEmployeeList(page int, pageSize int, searchText string) (int64, []models.Employee, error) {
+	var count int64
+	var employees []models.Employee
+	queryParams := []interface{}{}
+
+	countQuery := `SELECT COUNT(*) FROM "Employee"`
+	listQuery := `SELECT "mobileNumber", "firstName", "lastName", "id" 
+	FROM "Employee"`
+	// Search via number
+	if searchText != "" {
+		countQuery += ` WHERE "mobileNumber" ILIKE $1 OR "firstName" ILIKE $1 OR "lastName" ILIKE $1`
+		listQuery += ` WHERE "mobileNumber" ILIKE $1 OR "firstName" ILIKE $1 OR "lastName" ILIKE $1`
+		queryParams = append(queryParams, "%"+searchText+"%")
+		listQuery += ` LIMIT $2 OFFSET $3`
+	} else {
+		listQuery += ` LIMIT $1 OFFSET $2`
+	}
+	err := db.QueryRow(context.Background(), countQuery, queryParams...).Scan(&count)
+	if err != nil {
+		fmt.Println("Error counting tickets:", err)
+		return 0, nil, err
+	}
+	if count == 0 {
+		return count, employees, nil // Avoid checking rows as count is already zero
+	}
+
+	// Query to select tickets with pagination
+	queryParams = append(queryParams, pageSize, (page-1)*pageSize)
+	rows, err := db.Query(context.Background(), listQuery, queryParams...)
+	if err != nil {
+		fmt.Println(err)
+		return 0, nil, err
+	}
+	defer rows.Close()
+
+	// Iterate over the result set and scan into tickets slice
+	for rows.Next() {
+		var employee models.Employee
+		err := rows.Scan(&employee.MobileNumber, &employee.FirstName, &employee.LastName, &employee.ID)
+		if err != nil {
+			return 0, nil, err
+		}
+		employees = append(employees, employee)
+	}
+
+	return count, employees, nil
 }
