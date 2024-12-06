@@ -10,6 +10,7 @@ import (
 	"crm-backend/handlers"
 	"crm-backend/middleware"
 	customer "crm-backend/services"
+	"crm-backend/services/employee"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -40,6 +41,9 @@ func main() {
 	r.POST("/customer/create", customer.Create)
 
 	r.GET("/company/categoryList", handlers.CategoryList)
+
+	r.POST("/employee/create", employee.Create)
+	r.GET("/employee/list", employee.List)
 
 	r.POST("/ticket/create", handlers.CreateTicket)
 	r.GET("/ticket/list", handlers.GetTickets)
