@@ -143,14 +143,14 @@ func FindUserByEmail(email string) (models.User, error) {
 	return user, nil
 }
 
-func InsertTicket(ticket models.Ticket) (int64, error) {
+func InsertTicket(ticket models.Ticket) error {
 	var id int64
 
 	query := fmt.Sprintf(`
     INSERT INTO tickets (
         customer_name, contact, email, address, city, district, state, pincode, GST, brand, 
-		model_no, serial_no, issue_description, created_by, due_date ) 
-    VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s') 
+		model_no, serial_no, issue_description, created_by, due_date, "status_id", "emp_id" ) 
+    VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%d') 
     RETURNING id`,
 		ticket.Customer_Name,
 		ticket.Contact_Number,
@@ -167,25 +167,30 @@ func InsertTicket(ticket models.Ticket) (int64, error) {
 		ticket.Issue_Description,
 		ticket.Created_By,                    // '%d' for integer type
 		ticket.Due_Date.Format(time.RFC3339), // '%s' for date in string format (ISO8601 format)
+		ticket.Status_Id,
+		ticket.Emp_Id,
 	)
 
 	// Execute the SQL query directly using Exec
 	err := db.QueryRow(context.Background(), query).Scan(&id)
-	if err != nil {
-		fmt.Println(err)
-		return 0, err
-	}
-
-	return id, nil
+	return err
 }
 
-func GetTicketList(page int, pageSize int, created_by int) (int64, []models.Ticket, error) {
+func GetTicketList(page int, pageSize int, created_by int, status_id int) (int64, []models.Ticket, error) {
 	var count int64
 	var tickets []models.Ticket
+	queryParams := []interface{}{}
+	queryParams = append(queryParams, created_by)
+	whereStr := `WHERE created_by = $1`
 
 	// Query to count total tickets
 	countQuery := `SELECT COUNT(*) FROM "tickets" WHERE created_by = $1`
-	err := db.QueryRow(context.Background(), countQuery, created_by).Scan(&count)
+	if status_id != 0 {
+		countQuery += ` AND "status_id" = $2`
+		queryParams = append(queryParams, status_id)
+		whereStr += ` AND "status_id" = $2`
+	}
+	err := db.QueryRow(context.Background(), countQuery, queryParams...).Scan(&count)
 	if err != nil {
 		fmt.Println("Error counting tickets:", err)
 		return 0, nil, err
@@ -195,12 +200,25 @@ func GetTicketList(page int, pageSize int, created_by int) (int64, []models.Tick
 	}
 
 	// Query to select tickets with pagination
-	query := `SELECT "id", "customer_name", "contact", "email", "address", "city", "district",
+	query := `SELECT "tickets"."id", "customer_name", "contact", "email", "address", "city", "district",
 	"state", "pincode", "gst", "brand", "model_no", "serial_no", "issue_description", "due_date",
-	"created_at", "updated_at"
+	"created_at", "updated_at", "status_id", "TicketStatus"."name" AS "status", 
+	CONCAT("Employee"."firstName", ' ', "Employee"."lastName") AS "assignee", "emp_id"
 	FROM "tickets" 
-	WHERE created_by = $1 LIMIT $2 OFFSET $3`
-	rows, err := db.Query(context.Background(), query, created_by, pageSize, (page-1)*pageSize)
+
+	INNER JOIN "TicketStatus" ON "TicketStatus"."id" = "tickets"."status_id"
+	INNER JOIN "Employee" ON "Employee"."id" = "tickets"."emp_id"`
+	if status_id != 0 {
+		query += whereStr
+		query += ` LIMIT $3 OFFSET $4`
+	} else {
+		query += whereStr
+		query += ` LIMIT $2 OFFSET $3`
+	}
+
+	queryParams = append(queryParams, pageSize)
+	queryParams = append(queryParams, (page-1)*pageSize)
+	rows, err := db.Query(context.Background(), query, queryParams...)
 	if err != nil {
 		fmt.Println("Error querying tickets:", err)
 		return 0, nil, err
@@ -213,7 +231,7 @@ func GetTicketList(page int, pageSize int, created_by int) (int64, []models.Tick
 		err := rows.Scan(&ticket.ID, &ticket.Customer_Name, &ticket.Contact_Number, &ticket.Email,
 			&ticket.Address, &ticket.City, &ticket.District, &ticket.State, &ticket.Pincode, &ticket.Gst_Number,
 			&ticket.Brand, &ticket.Model_Number, &ticket.Serial_Number, &ticket.Issue_Description, &ticket.Due_Date,
-			&ticket.Created_At, &ticket.Updated_At)
+			&ticket.Created_At, &ticket.Updated_At, &ticket.Status_Id, &ticket.Status, &ticket.Assignee, &ticket.Emp_Id)
 		if err != nil {
 			fmt.Println("Error scanning ticket:", err)
 			return 0, nil, err

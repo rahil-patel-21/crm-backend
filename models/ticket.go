@@ -26,6 +26,10 @@ type Ticket struct {
 	Due_Date          time.Time `json:"due_date"`
 	Created_At        time.Time `json:"createdAt"`
 	Updated_At        time.Time `json:"updatedAt"`
+	Status_Id         int64     `json:"status_id"`
+	Status            string    `json:"status"`
+	Emp_Id            int64     `json:"emp_id"`
+	Assignee          string    `json:"assigned_to"`
 }
 
 func (t *Ticket) UnmarshalJSON(data []byte) error {

@@ -5,7 +5,6 @@ package handlers
 import (
 	"crm-backend/db"
 	"crm-backend/models"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -42,8 +41,16 @@ func CreateTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Please enter valid email address"})
 		return
 	}
+	if ticket.Status_Id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please select valid status"})
+		return
+	}
+	if ticket.Emp_Id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please select valid Assignee"})
+		return
+	}
 
-	createdData, err := db.InsertTicket(ticket)
+	err := db.InsertTicket(ticket)
 	if err != nil {
 		// Check if the error message contains the unique constraint name
 		if strings.Contains(err.Error(), "unique constraint \"users_email_key\"") {
@@ -54,7 +61,6 @@ func CreateTicket(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create this ticket"})
 		return
 	}
-	fmt.Println(createdData)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Ticket created successfully !"})
 }
@@ -79,9 +85,11 @@ func GetTickets(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "created_by should be number more than 0"})
 		return
 	}
+	status_id_str := c.Query("status_id")
+	status_id, err := strconv.Atoi(status_id_str)
 
 	// Get list of tickets with pagination
-	count, rows, err := db.GetTicketList(page, pageSize, created_by)
+	count, rows, err := db.GetTicketList(page, pageSize, created_by, status_id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
