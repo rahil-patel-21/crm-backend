@@ -15,6 +15,7 @@ var exceptionUrls = []string{
 	"/auth/resendOTP",
 	"/auth/verifyOTP",
 	"/auth/signIn",
+	"/company/categoryList",
 }
 
 func AuthRequired() gin.HandlerFunc {

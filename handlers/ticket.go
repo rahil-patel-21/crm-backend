@@ -13,6 +13,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func GetStatuses(c *gin.Context) {
+	type TicketStatus struct {
+		ID   int64  `json:"id"`   // ID of the category
+		Name string `json:"name"` // Name of the category
+	}
+	statuses := []TicketStatus{
+		{ID: 1, Name: "In Ward"},
+		{ID: 2, Name: "In Progress"},
+		{ID: 3, Name: "On Hold"},
+		{ID: 4, Name: "Ready to deliver"},
+		{ID: 5, Name: "Completed"},
+	}
+
+	c.JSON(http.StatusOK, gin.H{"statuses": statuses})
+}
+
 // Create new ticket
 func CreateTicket(c *gin.Context) {
 	var ticket models.Ticket
@@ -77,5 +93,4 @@ func GetTickets(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"count": count, "rows": rows})
-
 }
