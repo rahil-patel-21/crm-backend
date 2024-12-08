@@ -45,6 +45,7 @@ func main() {
 	r.POST("/employee/create", employee.Create)
 	r.GET("/employee/list", employee.List)
 
+	r.GET("/ticket/statuses", handlers.GetStatuses)
 	r.POST("/ticket/create", handlers.CreateTicket)
 	r.GET("/ticket/list", handlers.GetTickets)
 
